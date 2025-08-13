@@ -28,6 +28,10 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableDoubleState
+import androidx.compose.runtime.MutableIntState
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +47,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.jettip.components.InputField
 import com.example.jettip.ui.theme.JetTipTheme
+import com.example.jettip.util.calculateTotalPerPerson
+import com.example.jettip.util.calculateTotalTip
 import com.example.jettip.widget.RoundIconButton
 
 class MainActivity : ComponentActivity() {
@@ -100,6 +106,25 @@ fun MyHeader(totalPerPerson: Double = 0.0) {
 
 @Composable
 fun MainContext() {
+    val tipAmountState = remember {
+        mutableDoubleStateOf(
+            0.0
+        )
+    }
+    val totalSplitPerPersonState = remember {
+        mutableDoubleStateOf(
+            0.0
+        )
+    }
+    val splitByState = remember {
+        mutableIntStateOf(
+            1
+        )
+    }
+    val range = IntRange(
+        start = 1,
+        endInclusive = 100
+    )
     Surface(
         modifier = Modifier
             .fillMaxSize()
@@ -109,17 +134,22 @@ fun MainContext() {
             )
     ) {
 
-        Column {
-            MyHeader()
-            BillForm() { billAmt ->
-                Log.d("AMT", "MainContent: $billAmt")
-            }
-        }
+        BillForm (
+            tipAmountState = tipAmountState,
+            totalSplitPerPersonState = totalSplitPerPersonState,
+            splitByState = splitByState,
+            range = range
+        )
     }
 }
 
 @Composable
-fun BillForm(modifier: Modifier = Modifier, onValChange: (String) -> Unit = {}) {
+fun BillForm(modifier: Modifier = Modifier,
+             range: IntRange = 1..100,
+             splitByState: MutableIntState,
+             tipAmountState: MutableDoubleState,
+             totalSplitPerPersonState: MutableDoubleState,
+             onValChange: (String) -> Unit = {}) {
     val totalBillState = remember {
         mutableStateOf("")
     }
@@ -136,130 +166,154 @@ fun BillForm(modifier: Modifier = Modifier, onValChange: (String) -> Unit = {}) 
         )
     }
 
-    val splitByState = remember {
-        mutableIntStateOf(
-            1
+
+
+    val tipPercentage = (sliderPositionState.floatValue * 100).toInt()
+
+
+
+    Column {
+        MyHeader(
+            totalPerPerson = totalSplitPerPersonState.doubleValue
         )
-    }
+        Surface(
+            modifier = Modifier
+                .padding(2.dp)
+                .fillMaxWidth(), shape = RoundedCornerShape(
+                corner = CornerSize(8.dp),
 
+                ), border = BorderStroke(width = 1.dp, color = Color.LightGray)
 
-    val range = IntRange(
-        start = 1,
-        endInclusive = 100
-    )
-
-    Surface(
-        modifier = Modifier
-            .padding(2.dp)
-            .fillMaxWidth(), shape = RoundedCornerShape(
-            corner = CornerSize(8.dp),
-
-            ), border = BorderStroke(width = 1.dp, color = Color.LightGray)
-
-    ) {
-        Column(
-            modifier = Modifier.padding(6.dp),
-            verticalArrangement = Arrangement.Top,
-            horizontalAlignment = Alignment.Start
         ) {
-            InputField(
-                valueState = totalBillState,
-                labelId = "Enter Bill",
-                enabled = true,
-                isSingleLine = true,
-                onAction = KeyboardActions {
-                    if (!validState) return@KeyboardActions
-                    onValChange(totalBillState.value.trim())
-
-
-                    keyboardController?.hide()
-
-                },
-
-
-                )
-
-            if (
-//                validState
-                true
+            Column(
+                modifier = Modifier.padding(6.dp),
+                verticalArrangement = Arrangement.Top,
+                horizontalAlignment = Alignment.Start
             ) {
-                Row(
+                InputField(
+                    valueState = totalBillState,
+                    labelId = "Enter Bill",
+                    enabled = true,
+                    isSingleLine = true,
+                    onAction = KeyboardActions {
+                        if (!validState) return@KeyboardActions
+                        onValChange(totalBillState.value.trim())
 
-                    modifier = Modifier.padding(3.dp)
+
+                        keyboardController?.hide()
+
+                    },
+
+
+                    )
+
+                if (
+                                validState
+
                 ) {
-                    Text(
-                        "Split",
-                        textAlign = TextAlign.Center,
-                    )
-                    Spacer(
-                        modifier = Modifier.weight(1f)
-                    )
                     Row(
-                        modifier = Modifier.padding(horizontal = 3.dp),
-                        horizontalArrangement = Arrangement.End
+
+                        modifier = Modifier.padding(3.dp)
                     ) {
-                        RoundIconButton(
-                            imageVector = Icons.Default.Remove,
-                            onClick = {
-                                splitByState.intValue =
-                                    if (splitByState.intValue > 1) splitByState.intValue - 1 else 1
-                            }
+                        Text(
+                            "Split",
+                            textAlign = TextAlign.Center,
                         )
-                        Text(splitByState.intValue.toString(), textAlign = TextAlign.Center)
-                        RoundIconButton(
-                            imageVector = Icons.Default.Add,
-                            onClick = {
-                                if (splitByState.intValue < range.last)
-                                    splitByState.intValue += 1
-                            }
+                        Spacer(
+                            modifier = Modifier.weight(1f)
                         )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 3.dp),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            RoundIconButton(
+                                imageVector = Icons.Default.Remove,
+                                onClick = {
+                                    splitByState.intValue =
+                                        if (splitByState.intValue > 1) splitByState.intValue - 1 else 1
+                                    totalSplitPerPersonState.doubleValue = calculateTotalPerPerson(
+                                        totalBill = totalBillState.value.toDouble(),
+                                        splitBy = splitByState.intValue,
+                                        tipPercentage = tipPercentage
+                                    )
+                                }
+                            )
+                            Text(splitByState.intValue.toString(), textAlign = TextAlign.Center)
+                            RoundIconButton(
+                                imageVector = Icons.Default.Add,
+                                onClick = {
+                                    if (splitByState.intValue < range.last)
+                                        splitByState.intValue += 1
+                                    totalSplitPerPersonState.doubleValue = calculateTotalPerPerson(
+                                        totalBill = totalBillState.value.toDouble(),
+                                        splitBy = splitByState.intValue,
+                                        tipPercentage = tipPercentage
+                                    )
+                                }
+                            )
+                        }
+
+
                     }
 
-
-                }
-
-                Row {
-                    Text(
-                        "Tip", modifier = Modifier.align(
-                            alignment = Alignment.CenterVertically
+                    Row {
+                        Text(
+                            "Tip", modifier = Modifier.align(
+                                alignment = Alignment.CenterVertically
+                            )
                         )
-                    )
-                    Spacer(
-                        modifier = Modifier.width(200.dp)
-                    )
-                    Text(
-                        "$33.0", modifier = Modifier.align(
-                            alignment = Alignment.CenterVertically
+                        Spacer(
+                            modifier = Modifier.width(200.dp)
                         )
-                    )
-                }
-                Column(
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text("33%")
-                    Spacer(
-                        modifier = Modifier.height(14.dp)
-                    )
+                        Text(
+                            "$ ${tipAmountState.doubleValue}", modifier = Modifier.align(
+                                alignment = Alignment.CenterVertically
+                            )
+                        )
+                    }
+                    Column(
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text("$tipPercentage%")
+                        Spacer(
+                            modifier = Modifier.height(14.dp)
+                        )
 
-                    Slider(
-                        value = sliderPositionState.floatValue,
-                        steps = 5,
-                        modifier = Modifier.padding(
-                            start = 16.dp, end = 16.dp
-                        ),
-                        onValueChange = { newVal ->
-                            sliderPositionState.floatValue = newVal
-                        }
-                    )
+                        Slider(
+                            value = sliderPositionState.floatValue,
+                            steps = 5,
+                            modifier = Modifier.padding(
+                                start = 16.dp, end = 16.dp
+                            ),
+                            onValueChange = { newVal ->
+                                sliderPositionState.floatValue = newVal
 
+                                tipAmountState.doubleValue = calculateTotalTip(
+                                    totalBill = totalBillState.value.toDouble(),
+                                    tipPercentage = tipPercentage
+                                )
+                                totalSplitPerPersonState.doubleValue = calculateTotalPerPerson(
+                                    totalBill = totalBillState.value.toDouble(),
+                                    splitBy = splitByState.intValue,
+                                    tipPercentage = tipPercentage
+                                )
+
+                            }
+                        )
+
+                    }
+                } else {
+                    Box() {}
                 }
-            } else {
-                Box() {}
             }
         }
     }
+
+
 }
+
+
 
 
 @Preview(showBackground = true)
