@@ -11,9 +11,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,9 +24,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -71,6 +76,7 @@ fun MyHeader(totalPerPerson: Double = 0.0) {
         color = Color(0xFFE9D7F7),
         modifier = Modifier
             .fillMaxWidth()
+            .padding(20.dp)
             .height(150.dp)
             .clip(shape = RoundedCornerShape(10.dp))
     ) {
@@ -93,15 +99,24 @@ fun MyHeader(totalPerPerson: Double = 0.0) {
 
 
 @Composable
-fun MainContext(
+fun MainContext() {
+    Surface(
+        modifier = Modifier
+            .fillMaxSize()
+            .systemBarsPadding()
+            .padding(
+                all = 10.dp
+            )
+    ) {
 
-) {
-    BillForm() { billAmt ->
-        Log.d("AMT", "MainContent: $billAmt")
+        Column {
+            MyHeader()
+            BillForm() { billAmt ->
+                Log.d("AMT", "MainContent: $billAmt")
+            }
+        }
     }
-
 }
-
 
 @Composable
 fun BillForm(modifier: Modifier = Modifier, onValChange: (String) -> Unit = {}) {
@@ -114,6 +129,25 @@ fun BillForm(modifier: Modifier = Modifier, onValChange: (String) -> Unit = {}) 
     }
 
     val keyboardController = LocalSoftwareKeyboardController.current
+
+    val sliderPositionState = remember {
+        mutableFloatStateOf(
+            0f
+        )
+    }
+
+    val splitByState = remember {
+        mutableIntStateOf(
+            1
+        )
+    }
+
+
+    val range = IntRange(
+        start = 1,
+        endInclusive = 100
+    )
+
     Surface(
         modifier = Modifier
             .padding(2.dp)
@@ -166,12 +200,18 @@ fun BillForm(modifier: Modifier = Modifier, onValChange: (String) -> Unit = {}) 
                     ) {
                         RoundIconButton(
                             imageVector = Icons.Default.Remove,
-                            onClick = {}
+                            onClick = {
+                                splitByState.intValue =
+                                    if (splitByState.intValue > 1) splitByState.intValue - 1 else 1
+                            }
                         )
-                        Text("2", textAlign = TextAlign.Center)
+                        Text(splitByState.intValue.toString(), textAlign = TextAlign.Center)
                         RoundIconButton(
                             imageVector = Icons.Default.Add,
-                            onClick = {}
+                            onClick = {
+                                if (splitByState.intValue < range.last)
+                                    splitByState.intValue += 1
+                            }
                         )
                     }
 
@@ -193,6 +233,27 @@ fun BillForm(modifier: Modifier = Modifier, onValChange: (String) -> Unit = {}) 
                         )
                     )
                 }
+                Column(
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("33%")
+                    Spacer(
+                        modifier = Modifier.height(14.dp)
+                    )
+
+                    Slider(
+                        value = sliderPositionState.floatValue,
+                        steps = 5,
+                        modifier = Modifier.padding(
+                            start = 16.dp, end = 16.dp
+                        ),
+                        onValueChange = { newVal ->
+                            sliderPositionState.floatValue = newVal
+                        }
+                    )
+
+                }
             } else {
                 Box() {}
             }
@@ -207,7 +268,7 @@ fun GreetingPreview() {
     JetTipTheme {
         MyApp {
             MainContext()
-            MainContext()
+
         }
     }
 }
